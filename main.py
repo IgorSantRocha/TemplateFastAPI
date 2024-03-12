@@ -12,16 +12,19 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.openapi.utils import get_openapi
 
 
 def api_factory():
-    app = FastAPI(
-        title=settings.PROJECT_NAME
-    )
-
+    app = FastAPI(title=settings.PROJECT_NAME,
+                  root_path="/Template",
+                  version='0.0.1',
+                  description='Template para criação de APIs',
+                  )
     logging.config.dictConfig(settings.LOGGING_CONFIG)
-    resource = Resource(attributes={"service.name": settings.PROJECT_NAME})
-    '''tracer = TracerProvider(resource=resource)
+    '''resource = Resource(attributes={"service.name": settings.PROJECT_NAME})
+    tracer = TracerProvider(resource=resource)
     trace.set_tracer_provider(tracer)
     tracer.add_span_processor(BatchSpanProcessor(
         OTLPSpanExporter(endpoint=settings.TEMPO_URL)))
@@ -46,6 +49,31 @@ def api_factory():
 
 
 app = api_factory()
+
+
+@app.get(f"{app.root_path}/", description='Resposta somente para validar se a API subiu corretamente. Sem nenhuma conexão com o banco de dados.',
+         summary='Valida se API está no ar')
+def get_index():
+    return {'msg': 'API está no ar!'}
+
+
+@app.get(f"{app.root_path}/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(openapi_url="/Retencao/openapi.json", title='API Docs')
+
+# Rota para a documentação Redoc
+
+
+@app.get(f"{app.root_path}/redoc", include_in_schema=False)
+async def redoc_html():
+    return get_redoc_html(openapi_url="/Retencao/openapi.json", title='ReDoc')
+
+'''Rota para o esquema OpenAPI'''
+
+
+@app.get(f"{app.root_path}/openapi.json", include_in_schema=False)
+async def get_custom_openapi():
+    return get_openapi(title=app.title, version="0.0.1", routes=app.routes, description=app.description)
 
 
 def run():
