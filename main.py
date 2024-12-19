@@ -4,12 +4,6 @@ import logging
 import uvicorn
 from api.api_v1.api import api_router
 from core.config import settings
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -23,12 +17,6 @@ def api_factory():
                   description='Template para criação de APIs',
                   )
     logging.config.dictConfig(settings.LOGGING_CONFIG)
-    '''resource = Resource(attributes={"service.name": settings.PROJECT_NAME})
-    tracer = TracerProvider(resource=resource)
-    trace.set_tracer_provider(tracer)
-    tracer.add_span_processor(BatchSpanProcessor(
-        OTLPSpanExporter(endpoint=settings.TEMPO_URL)))
-    FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer)'''
     LoggingInstrumentor().instrument()
     HTTPXClientInstrumentor().instrument()
 
@@ -59,14 +47,14 @@ def get_index():
 
 @app.get(f"{app.root_path}/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
-    return get_swagger_ui_html(openapi_url="/Retencao/openapi.json", title='API Docs')
+    return get_swagger_ui_html(openapi_url="/Template/openapi.json", title='API Docs')
 
 # Rota para a documentação Redoc
 
 
 @app.get(f"{app.root_path}/redoc", include_in_schema=False)
 async def redoc_html():
-    return get_redoc_html(openapi_url="/Retencao/openapi.json", title='ReDoc')
+    return get_redoc_html(openapi_url="/Template/openapi.json", title='ReDoc')
 
 '''Rota para o esquema OpenAPI'''
 

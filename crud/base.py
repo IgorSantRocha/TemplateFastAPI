@@ -1,6 +1,5 @@
 import logging
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
-from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -29,6 +28,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         logging.info(f'Obtendo {self.model.__name__} de id={id}')
         return db.query(self.model).filter(self.model.id == id).first()
 
+    def get_first_by_filter(
+        self, db: Session, *, order_by: str = "id", filterby: str = "enviado", filter: str
+    ) -> List[ModelType]:
+        logging.info(
+            f'Obtendo lista de {self.model.__name__} cujo {filterby}={filter}')
+        return db.query(self.model).order_by(getattr(self.model, order_by)).filter(getattr(self.model, filterby) == filter).first()
+
     def get_multi(
             self, db: Session, *, skip: int = 0, limit: int = 100, order_by: str = "id"
     ) -> List[ModelType]:
@@ -46,14 +52,39 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self,
         db: Session,
         *,
-        filters: Dict[str, Union[str, int]]
+        filters: List[Dict[str, Any]]
     ) -> List[ModelType]:
         query = db.query(self.model)
         logging.info(
             f'Obtendo lista de {self.model.__name__} de acordo com os filtros')
-        for filter_name, filter_value in filters.items():
-            query = query.filter(
-                getattr(self.model, filter_name) == filter_value)
+
+        # Definir um mapa de operadores
+        operator_map = {
+            '=': lambda field, value: field == value,
+            '!=': lambda field, value: field != value,
+            '<': lambda field, value: field < value,
+            '<=': lambda field, value: field <= value,
+            '>': lambda field, value: field > value,
+            '>=': lambda field, value: field >= value,
+            'like': lambda field, value: field.like(value),
+            'ilike': lambda field, value: field.ilike(value),
+            'in': lambda field, value: field.in_(value),
+            'notin': lambda field, value: field.notin_(value),
+            # Adicionar mais operadores conforme necessário
+        }
+
+        for filter in filters:
+            field_name = filter["field"]
+            operator = filter.get("operator", "=")  # Operador padrão é '='
+            value = filter["value"]
+
+            field = getattr(self.model, field_name)
+
+            if operator in operator_map:
+                query = query.filter(operator_map[operator](field, value))
+            else:
+                raise ValueError(f"Operador desconhecido: {operator}")
+
         return query.all()
 
     def get_last_by_filters(
@@ -91,6 +122,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             elif operator == 'like':
                 query = query.filter(
                     getattr(self.model, filter_name).like(f"%{filter_value}%"))
+            elif operator == 'is_null':
+                query = query.filter(
+                    getattr(self.model, filter_name).is_(None))
             else:
                 # Handle other operators as needed
                 pass
