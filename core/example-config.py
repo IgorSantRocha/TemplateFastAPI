@@ -1,3 +1,4 @@
+import logging
 import secrets
 from typing import Any, Dict, List, Optional, Union
 from fastapi.security.api_key import APIKeyHeader, APIKey
@@ -74,17 +75,35 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     PROJECT_NAME: str = 'Nome do projeto'
-    SQL_HOST: str = ''
-    SQL_USER: str = ''
-    SQL_PASSWORD: str = ''
-    SQL_DATABASE: str = ''
-    SQLALCHEMY_DATABASE_URI: Optional[str] = None
 
-    @validator("SQLALCHEMY_DATABASE_URI", pre=True)
-    def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+    PSQL_HOST: str = ''
+    PSQL_USER: str = ''
+    PSQL_PASSWORD: str = ''
+    PSQL_DATABASE: str = ''
+    PSQL_PORT: int = 5432
+    SQLALCHEMY_DATABASE_URI_PG: Optional[str] = None
+
+    @validator("SQLALCHEMY_DATABASE_URI_PG", pre=True)
+    def assemble_db_connection_psql(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
         if isinstance(v, str):
             return v
-        return f'mssql+pyodbc://{values.get("SQL_USER")}:{values.get("SQL_PASSWORD")}@{values.get("SQL_HOST")}/{values.get("SQL_DATABASE")}?driver=ODBC+Driver+17+for+SQL+Server'
+        return (
+            f'postgresql+asyncpg://{values.get("PSQL_USER")}:'
+            f'{values.get("PSQL_PASSWORD")}@{values.get("PSQL_HOST")}:'
+            f'{values.get("PSQL_PORT", 5432)}/{values.get("PSQL_DATABASE")}'
+        )
+
+    SQL_HOST_212: str = ''
+    SQL_USER_212: str = ''
+    SQL_PASSWORD_212: str = ''
+    SQL_DATABASE_212: str = ''
+    SQLALCHEMY_DATABASE_URI_212: Optional[str] = None
+
+    @validator("SQLALCHEMY_DATABASE_URI_212", pre=True)
+    def assemble_db_connection_212(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+        if isinstance(v, str):
+            return v
+        return f'mssql+pyodbc://{values.get("SQL_USER_212")}:{values.get("SQL_PASSWORD_212")}@{values.get("SQL_HOST_212")}/{values.get("SQL_DATABASE_212")}?driver=ODBC+Driver+17+for+SQL+Server'
 
     SQL_HOST_211: str = ''
     SQL_USER_211: str = ''
@@ -110,12 +129,20 @@ settings = Settings()
 '''
     Configurações do Firebase
 '''
-# Caminho relativo para o arquivo JSON
-firebase_cred_path: str = os.path.join(base_dir, 'firebase-adminsdk.json')
-firebase_cred: credentials.Certificate = credentials.Certificate(
-    firebase_cred_path)
-firebase_admin.initialize_app(firebase_cred, {
-    'storageBucket': 'appandroidios-38136.appspot.com'
-})
+try:
+    # Caminho relativo para o arquivo JSON
+    firebase_cred_path: str = os.path.join(base_dir, 'firebase-adminsdk.json')
+    firebase_cred: credentials.Certificate = credentials.Certificate(
+        firebase_cred_path)
+    firebase_admin.initialize_app(firebase_cred, {
+        'storageBucket': 'appandroidios-38136.appspot.com'
+    })
 
-firebase_bucket: IgnoredType = storage.bucket()
+    firebase_bucket: IgnoredType = storage.bucket()
+except:
+    firebase_cred_path = None
+    firebase_cred = None
+    firebase_admin = None
+    firebase_bucket = None
+    logging.error(
+        f'Não foi possível iniciar o Firebase')
